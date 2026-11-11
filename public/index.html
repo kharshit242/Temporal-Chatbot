@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Temporal Chatbot</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:          #0f1117;
+    --surface:     #1a1d27;
+    --surface2:    #232637;
+    --border:      #2e3148;
+    --accent:      #6366f1;
+    --accent-dim:  #4f52c4;
+    --text:        #e2e4f0;
+    --text-muted:  #8b8fa8;
+    --green:       #34d399;
+    --amber:       #fbbf24;
+    --red:         #f87171;
+    --blue:        #60a5fa;
+    --radius:      10px;
+    --font-mono:   'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  .app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 0 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  header .logo {
+    font-size: 22px;
+  }
+  header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  header .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    margin-right: 5px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Message area ── */
+  #messages {
+    overflow-y: auto;
+    padding: 24px 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    scroll-behavior: smooth;
+  }
+
+  /* ── Individual messages ── */
+  .msg {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } }
+
+  .msg-avatar {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .msg.user .msg-avatar  { background: var(--accent); }
+  .msg.agent .msg-avatar { background: var(--surface2); border: 1px solid var(--border); }
+
+  .msg-body { flex: 1; min-width: 0; }
+
+  .msg-role {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+  }
+  .msg.user .msg-role  { color: var(--accent); }
+  .msg.agent .msg-role { color: var(--blue); }
+
+  .msg-text {
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user .msg-text {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+  }
+
+  /* ── Status pills ── */
+  .status-log {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .status-line.active { color: var(--blue); }
+  .status-line svg { flex-shrink: 0; }
+
+  /* ── Citations ── */
+  .citations {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .citations-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+  }
+  .citation {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .citation-idx {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 20px;
+    padding-top: 1px;
+    font-family: var(--font-mono);
+  }
+  .citation a {
+    font-size: 12px;
+    color: var(--blue);
+    text-decoration: none;
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .citation a:hover { text-decoration: underline; }
+  .citation-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-right: 4px;
+  }
+  .badge.official      { background: #1e3a5f; color: var(--blue); }
+  .badge.documentation { background: #1e3a5f; color: #93c5fd; }
+  .badge.news          { background: #3b1f1f; color: #fca5a5; }
+  .badge.community     { background: #2d2a1e; color: var(--amber); }
+  .badge.unknown       { background: var(--surface2); color: var(--text-muted); }
+
+  /* ── Metadata bar ── */
+  .metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .meta-pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .meta-pill.conf-high   { border-color: var(--green);  color: var(--green); }
+  .meta-pill.conf-medium { border-color: var(--amber);  color: var(--amber); }
+  .meta-pill.conf-low    { border-color: var(--red);    color: var(--red); }
+
+  /* ── Error ── */
+  .error-box {
+    background: #2d1515;
+    border: 1px solid #5a2020;
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    color: var(--red);
+    font-size: 13px;
+  }
+
+  /* ── Typing cursor ── */
+  .cursor {
+    display: inline-block;
+    width: 2px; height: 1em;
+    background: var(--accent);
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    animation: blink 0.8s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Spinner ── */
+  .spinner {
+    width: 13px; height: 13px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Input area ── */
+  .input-area {
+    padding: 14px 0 20px;
+    border-top: 1px solid var(--border);
+  }
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  #input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 11px 14px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    resize: none;
+    min-height: 48px;
+    max-height: 160px;
+    outline: none;
+    transition: border-color 0.15s;
+    overflow-y: auto;
+  }
+  #input:focus { border-color: var(--accent); }
+  #input::placeholder { color: var(--text-muted); }
+
+  #send {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 11px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    height: 48px;
+  }
+  #send:hover:not(:disabled) { background: var(--accent-dim); }
+  #send:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <span class="logo">🕰️</span>
+    <h1>Temporal Chatbot</h1>
+    <span class="subtitle"><span class="dot"></span>Live</span>
+  </header>
+
+  <div id="messages"></div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <textarea
+        id="input"
+        placeholder="Ask a question... (Shift+Enter for newline)"
+        rows="1"
+        autofocus
+      ></textarea>
+      <button id="send">Send ↑</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── State ── */
+  let conversationId = null;
+  let isLoading = false;
+
+  /* ── Elements ── */
+  const msgArea  = document.getElementById('messages');
+  const inputEl  = document.getElementById('input');
+  const sendBtn  = document.getElementById('send');
+
+  /* ── Auto-resize textarea ── */
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+  });
+
+  /* ── Keyboard shortcut ── */
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+
+  /* ── Scroll to bottom ── */
+  function scrollBottom() {
+    msgArea.scrollTop = msgArea.scrollHeight;
+  }
+
+  /* ── Render user message ── */
+  function appendUserMessage(text) {
+    const el = document.createElement('div');
+    el.className = 'msg user';
+    el.innerHTML = `
+      <div class="msg-avatar">👤</div>
+      <div class="msg-body">
+        <div class="msg-role">You</div>
+        <div class="msg-text">${escHtml(text)}</div>
+      </div>`;
+    msgArea.appendChild(el);
+    scrollBottom();
+  }
+
+  /* ── Render agent response shell ── */
+  function appendAgentShell() {
+    const el = document.createElement('div');
+    el.className = 'msg agent';
+    el.innerHTML = `
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-body">
+        <div class="msg-role">Agent</div>
+        <div class="status-log" id="status-log"></div>
+        <div class="msg-text" id="answer-text"></div>
+        <div id="citations-area"></div>
+        <div id="metadata-area"></div>
+      </div>`;
+    msgArea.appendChild(el);
+    scrollBottom();
+    return el;
+  }
+
+  /* ── Add a status line to the agent shell ── */
+  function addStatusLine(shell, text, active) {
+    const log = shell.querySelector('#status-log');
+    const line = document.createElement('div');
+    line.className = 'status-line' + (active ? ' active' : '');
+    line.innerHTML = `
+      ${active ? '<span class="spinner"></span>' : checkSvg()}
+      <span>${escHtml(text)}</span>`;
+    log.appendChild(line);
+    scrollBottom();
+    return line;
+  }
+
+  function markStatusDone(line) {
+    line.classList.remove('active');
+    line.innerHTML = `${checkSvg()}<span>${line.querySelector('span').textContent}</span>`;
+  }
+
+  function checkSvg() {
+    return `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  }
+
+  /* ── Render citations ── */
+  function renderCitations(citations, container) {
+    if (!citations || citations.length === 0) return;
+    const div = document.createElement('div');
+    div.className = 'citations';
+    div.innerHTML = `<div class="citations-label">Sources</div>`;
+    citations.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'citation';
+      const date = c.publishedAt
+        ? new Date(c.publishedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        : new Date(c.retrievedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      row.innerHTML = `
+        <span class="citation-idx">[${c.index}]</span>
+        <div>
+          <a href="${escAttr(c.url)}" target="_blank" rel="noopener">${escHtml(c.title || c.domain)}</a>
+          <div class="citation-meta">
+            <span class="badge ${c.sourceType}">${c.sourceType}</span>
+            ${escHtml(c.domain)} · ${date}
+          </div>
+        </div>`;
+      div.appendChild(row);
+    });
+    container.appendChild(div);
+  }
+
+  /* ── Render metadata bar ── */
+  function renderMetadata(meta, container) {
+    if (!meta) return;
+    const div = document.createElement('div');
+    div.className = 'metadata';
+    const conf = meta.confidence || 'low';
+    div.innerHTML = `
+      <span class="meta-pill conf-${conf}">Confidence: ${conf}</span>
+      ${meta.sourcesUsed ? `<span class="meta-pill">Sources: ${meta.sourcesUsed}</span>` : ''}
+      ${meta.officialSources ? `<span class="meta-pill">Official: ${meta.officialSources}</span>` : ''}
+      ${meta.conflicts ? `<span class="meta-pill" style="border-color:var(--amber);color:var(--amber)">⚠ Conflicts: ${meta.conflicts}</span>` : ''}
+      ${meta.usedMemory ? `<span class="meta-pill">Memory used</span>` : ''}
+      ${meta.claimsVerified ? `<span class="meta-pill">Claims verified: ${meta.claimsVerified}</span>` : ''}
+      <span class="meta-pill">${meta.latencyMs}ms</span>`;
+    container.appendChild(div);
+  }
+
+  /* ── Escape helpers ── */
+  function escHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escAttr(s) {
+    return String(s ?? '').replace(/"/g, '&quot;');
+  }
+
+  /* ── Main send ── */
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || isLoading) return;
+
+    isLoading = true;
+    sendBtn.disabled = true;
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+
+    appendUserMessage(text);
+    const shell = appendAgentShell();
+    const answerEl = shell.querySelector('#answer-text');
+    const citationsEl = shell.querySelector('#citations-area');
+    const metadataEl = shell.querySelector('#metadata-area');
+
+    let currentStatusLine = null;
+    let cursor = document.createElement('span');
+    cursor.className = 'cursor';
+
+    try {
+      const payload = {
+        message: text,
+        conversationId: conversationId || undefined
+      };
+
+      const resp = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        throw new Error(`Server error ${resp.status}`);
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let inAnswer = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw || raw === '[DONE]') continue;
+
+          let evt;
+          try { evt = JSON.parse(raw); } catch { continue; }
+
+          if (evt.type === 'status') {
+            if (currentStatusLine) markStatusDone(currentStatusLine);
+            currentStatusLine = addStatusLine(shell, evt.content, true);
+
+          } else if (evt.type === 'token') {
+            if (!inAnswer) {
+              if (currentStatusLine) {
+                markStatusDone(currentStatusLine);
+                currentStatusLine = null;
+              }
+              inAnswer = true;
+              answerEl.appendChild(cursor);
+            }
+            // Insert text before cursor
+            const tn = document.createTextNode(evt.content);
+            answerEl.insertBefore(tn, cursor);
+            scrollBottom();
+
+          } else if (evt.type === 'done') {
+            if (currentStatusLine) markStatusDone(currentStatusLine);
+            if (cursor.parentNode) cursor.remove();
+            if (evt.conversationId) conversationId = evt.conversationId;
+            renderCitations(evt.citations, citationsEl);
+            renderMetadata(evt.metadata, metadataEl);
+
+          } else if (evt.type === 'error') {
+            if (cursor.parentNode) cursor.remove();
+            const errDiv = document.createElement('div');
+            errDiv.className = 'error-box';
+            errDiv.textContent = evt.content || 'An error occurred.';
+            answerEl.appendChild(errDiv);
+          }
+        }
+      }
+
+      // Cleanup cursor if still present
+      if (cursor.parentNode) cursor.remove();
+
+    } catch (err) {
+      if (cursor.parentNode) cursor.remove();
+      const errDiv = document.createElement('div');
+      errDiv.className = 'error-box';
+      errDiv.textContent = 'Connection error: ' + err.message;
+      answerEl.appendChild(errDiv);
+    } finally {
+      isLoading = false;
+      sendBtn.disabled = false;
+      inputEl.focus();
+      scrollBottom();
+    }
+  }
+</script>
+</body>
+</html>
+
